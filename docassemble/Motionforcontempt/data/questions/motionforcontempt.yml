@@ -56,7 +56,7 @@ objects:
   - users: ALPeopleList.using(there_are_any=True)
   - other_parties: ALPeopleList.using(there_are_any=True)
   - court_list: ALCourtLoader.using(file_name='JDCs_by_parish.xlsx')
-  - who_violated_the_judgment_location: ALAddress
+  - attorney: ALPeopleList.using(ask_number=True,target_number=1)
 ---
 sections:
   - review_motionforcontempt: Review your answers
@@ -80,7 +80,11 @@ code: |
   trial_court
   trial_court_index
   judgment_information
-  who_violated_the_judgment_location.address.address
+  who_violated_the_judgment.address.address
+  plantiff_or_defendant_attorney
+  if (plantiff_or_defendant_attorney):
+    attorney.gather()
+    attorney[0].address.address
   set_progress(25)
   #set_parts(subtitle=str(users))
   interview_order_motionforcontempt = True
@@ -110,9 +114,24 @@ comment: |
 id: Motionforcontempt
 continue button field: motionforcontempt_intro
 question: |
-  Motionforcontempt
+  These instructions are meant to guide you through the process of filing a **Rule for Contempt**.
+
 subquestion: |
-  Motionforcontempt
+  
+  Instructions:
+  
+    1.	Be sure you have the selected the correct interview.
+    2.	Fill in the blanks with 100% accurate information. Any false statement made in court or written in a court document may constitute perjury.
+    3.	Check all options that pertain to your situation.
+    4.	Attach any supporting documentation related to your request (i.e. evidence that supports your case, such as phone records or a doctor’s note).
+    5.	Once you have filled out your rule, verify that all answers are correct and complete.
+      
+  Things you will need:
+      
+    1.	The docket number of the case this Rule for Contempt is related to.
+    2.	The exact name and address of the other party in this matter that you will need to serve (or the other party’s counsel).
+      
+   Please note: *This is not legal advice and cannot take the place of the advice that a lawyer can give you.* *You can use* [this website](http://www.rwkrebsllc.com/home.htmlst) *to find and speak with a lawyer before taking legal action. However, if you represent yourself in court, you must follow all the proper procedures and the law. It is your responsibility to see your case through the whole process.*
 ---
 id: your name
 sets:
@@ -127,21 +146,11 @@ fields:
       users[0].name_fields()
   - "Phone number": user_phone_number
 ---
-sets:
-  - who_violated_the_judgment_location.address.address
-  - who_violated_the_judgment_location.address.city
-  - who_violated_the_judgment_location.address.county
-  - who_violated_the_judgment_location.address.zip
-  - who_violated_the_judgment_location.address.unit
-  - who_violated_the_judgment_location.address.state
-  - who_violated_the_judgment_location.address.country
-id: persons address
-generic object: ALAddress
+id: Who Violated's phone number
 question: |
-  What is ${ who_violated_the_judgment }'s address?
+  What is ${ who_violated_the_judgment }'s phone number?
 fields:
-  - code: |
-      who_violated_the_judgment_location.address_fields(show_county=True, country_code=AL_DEFAULT_COUNTRY, default_state=LA)
+  - "Phone number": who_violated_the_judgment_phone_number
 ---
 id: Case info
 question: |
@@ -154,6 +163,9 @@ fields:
     datatype: yesno
   - "Which division was your case?": division
     datatype: integer
+    hide if: dont_know_division_number
+  - "I don't know the division of my case.": dont_know_division_number
+    datatype: yesno
   - "Date of the order": date_of_order
     datatype: date
   - "What parish was your order from?": trial_court_index
@@ -172,20 +184,48 @@ question: |
   Judgment Violation
 fields:
   - "Briefly describe the judgment of this case.": judgment_information
+    input type: area
   - "Who do you feel violated this judgment?": who_violated_the_judgment
-    datatype: radio
-    choices: 
-      code: |
-        other_parties
+    datatype: object_radio
+    choices:
+      - other_parties
   - "How did they violate this judgment?": reasons_to_be_in_contempt
+    input type: area
 ---
+id: Attorney Name
+sets:
+  - attorney[i].name.first
+  - attorney[i].name.middle
+  - attorney[i].name.last
+  - attorney[i].suffix
 question: |
-  ${ who_violated_the_judgment }
+  Attorney Information
 fields:
-  - "Who?": test
-#---
-#code:  |
-#  selected_party == who_violated_the_judgment  
+  - "Does ${ who_violated_the_judgment } have an attorney?": plantiff_or_defendant_attorney
+    datatype: yesnoradio
+  - First name: attorney[0].name.first
+    show if: 
+      variable: plantiff_or_defendant_attorney
+      is: True
+  - Middle name: attorney[0].name.middle
+    required: False
+    show if: 
+      variable: plantiff_or_defendant_attorney
+      is: True
+  - Last name: attorney[0].name.last
+    show if: 
+      variable: plantiff_or_defendant_attorney
+      is: True
+  - Suffix: attorney[0].name.suffix
+    show if: 
+      variable: plantiff_or_defendant_attorney
+      is: True
+    required: False
+  - "Phone number": attorney_phone_number
+    datatype: text
+    show if: 
+      variable: plantiff_or_defendant_attorney
+      is: True
 ---
 id: preview motionforcontempt
 question: |
@@ -360,4 +400,5 @@ attachment:
       - "name": ${ trial_court.name }
       - "judicial_district": ${ trial_court.judicial_district }
       - "district_attorney": ${ trial_court.district_attorney }
-      - "selected_party": ${ who_violated_the_judgment }
+      - "user_names": ${ users }
+      - "other_parties_names": ${ other_parties }
