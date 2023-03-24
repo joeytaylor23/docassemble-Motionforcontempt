@@ -1,0 +1,404 @@
+---
+include:
+  - docassemble.AssemblyLine:assembly_line.yml
+---
+metadata:
+  title: |
+    Motionforcontempt
+  short title: |
+    Motionforcontempt
+  tags:
+    - BE-04-00-00-00
+  authors:
+    - Joey
+---
+mandatory: True
+comment: |
+  Global interview metadata
+variable name: interview_metadata["motionforcontempt"]
+data:
+  al_weaver_version: "1.8.0"
+  generated on: "2023-02-23"
+  title: >-
+    Motionforcontempt
+  short title: >-
+    Motionforcontempt
+  description: |-
+    Motionforcontempt
+  allowed courts: 
+    - "District Court"
+  categories:
+    - "BE-04-00-00-00"
+  typical role: "unknown"
+  generate download screen: True
+---
+code: |
+  interview_metadata['main_interview_key'] =  'motionforcontempt'
+---
+code: |
+  # This controls the default country and list of states in address field questions
+  AL_DEFAULT_COUNTRY = "US"
+---
+code: |
+  # This controls the default state in address field questions
+  AL_DEFAULT_STATE = "MA"
+---
+code: |
+  github_repo_name =  'docassemble-Motionforcontempt'
+---
+code: |
+  interview_short_title = "File a Motionforcontempt"
+---
+code: |
+  al_form_type = "existing_case" 
+---
+objects:
+  - users: ALPeopleList.using(there_are_any=True)
+  - other_parties: ALPeopleList.using(there_are_any=True)
+  - court_list: ALCourtLoader.using(file_name='JDCs_by_parish.xlsx')
+  - attorney: ALPeopleList.using(ask_number=True,target_number=1)
+---
+sections:
+  - review_motionforcontempt: Review your answers
+---
+#################### Interview order #####################
+comment: |
+  Controls order and branching logic for questions specific to this form
+id: interview_order_motionforcontempt
+code: |
+  # Set the allowed courts for this interview
+  allowed_courts = interview_metadata["motionforcontempt"]["allowed courts"]
+  nav.set_section("review_motionforcontempt")
+  # Below sets the user_role and user_ask_role by asking a question.
+  # You can set user_ask_role directly instead to either 'plaintiff' or 'defendant'
+  user_ask_role
+  users.gather()
+  users[0].address.address
+  other_parties.gather()
+  judgment_information
+  docket_number
+  trial_court
+  trial_court_index
+  judgment_information
+  who_violated_the_judgment.address.address
+  plantiff_or_defendant_attorney
+  if (plantiff_or_defendant_attorney):
+    attorney.gather()
+    attorney[0].address.address
+  set_progress(25)
+  #set_parts(subtitle=str(users))
+  interview_order_motionforcontempt = True
+---
+###################### Main order ######################
+comment: |
+  This block includes the logic for standalone interviews.
+  Delete mandatory: True to include in another interview
+mandatory: True
+code: |
+  al_intro_screen
+  motionforcontempt_intro
+  interview_order_motionforcontempt
+  signature_date
+  # Store anonymous data for analytics / statistics
+  store_variables_snapshot(
+      persistent=True,
+      data={
+          "zip": showifdef("users[0].address.zip"),
+          "reached_interview_end": True,
+      },
+  )
+  motionforcontempt_download
+---
+comment: |
+  This question is used to introduce your interview. Please customize
+id: Motionforcontempt
+continue button field: motionforcontempt_intro
+question: |
+  These instructions are meant to guide you through the process of filing a **Rule for Contempt**.
+
+subquestion: |
+  
+  Instructions:
+  
+    1.	Be sure you have the selected the correct interview.
+    2.	Fill in the blanks with 100% accurate information. Any false statement made in court or written in a court document may constitute perjury.
+    3.	Check all options that pertain to your situation.
+    4.	Attach any supporting documentation related to your request (i.e. evidence that supports your case, such as phone records or a doctor’s note).
+    5.	Once you have filled out your rule, verify that all answers are correct and complete.
+      
+  Things you will need:
+      
+    1.	The docket number of the case this Rule for Contempt is related to.
+    2.	The exact name and address of the other party in this matter that you will need to serve (or the other party’s counsel).
+      
+   Please note: *This is not legal advice and cannot take the place of the advice that a lawyer can give you.* *You can use* [this website](http://www.rwkrebsllc.com/home.htmlst) *to find and speak with a lawyer before taking legal action. However, if you represent yourself in court, you must follow all the proper procedures and the law. It is your responsibility to see your case through the whole process.*
+---
+id: your name
+sets:
+    - users[0].name.first
+    - users[0].name.last
+    - users[0].name.middle
+    - users[0].name.suffix
+question: |
+  What is your name?
+fields:
+  - code: |
+      users[0].name_fields()
+  - "Phone number": user_phone_number
+---
+id: Who Violated's phone number
+question: |
+  What is ${ who_violated_the_judgment }'s phone number?
+fields:
+  - "Phone number": who_violated_the_judgment_phone_number
+---
+id: Case info
+question: |
+  Case Information
+fields:
+  - "What is the dock number of your case?": docket_number
+    datatype: integer
+    hide if: dont_know_docket_number
+  - "I don't know the case number.": dont_know_docket_number
+    datatype: yesno
+  - "Which division was your case?": division
+    datatype: integer
+    hide if: dont_know_division_number
+  - "I don't know the division of my case.": dont_know_division_number
+    datatype: yesno
+  - "Date of the order": date_of_order
+    datatype: date
+  - "What parish was your order from?": trial_court_index
+    code: |
+      court_list.filter_courts(None)
+validation code: |
+  # This should be safe too
+  if dont_know_docket_number:
+    docket_number = ''   
+---
+code: |
+  trial_court = court_list.as_court('trial_court', trial_court_index[0])
+---
+id: Violation Info
+question: |
+  Judgment Violation
+fields:
+  - "Briefly describe the judgment of this case.": judgment_information
+    input type: area
+  - "Who do you feel violated this judgment?": who_violated_the_judgment
+    datatype: object_radio
+    choices:
+      - other_parties
+  - "How did they violate this judgment?": reasons_to_be_in_contempt
+    input type: area
+---
+id: Attorney Name
+sets:
+  - attorney[i].name.first
+  - attorney[i].name.middle
+  - attorney[i].name.last
+  - attorney[i].suffix
+question: |
+  Attorney Information
+fields:
+  - "Does ${ who_violated_the_judgment } have an attorney?": plantiff_or_defendant_attorney
+    datatype: yesnoradio
+  - First name: attorney[0].name.first
+    show if: 
+      variable: plantiff_or_defendant_attorney
+      is: True
+  - Middle name: attorney[0].name.middle
+    required: False
+    show if: 
+      variable: plantiff_or_defendant_attorney
+      is: True
+  - Last name: attorney[0].name.last
+    show if: 
+      variable: plantiff_or_defendant_attorney
+      is: True
+  - Suffix: attorney[0].name.suffix
+    show if: 
+      variable: plantiff_or_defendant_attorney
+      is: True
+    required: False
+  - "Phone number": attorney_phone_number
+    datatype: text
+    show if: 
+      variable: plantiff_or_defendant_attorney
+      is: True
+---
+id: preview motionforcontempt
+question: |
+  Preview your form before you sign it
+subquestion: |
+  Here is a preview of the form you will sign on the next page.   
+  
+  ${ al_court_bundle.as_pdf(key='preview') }
+
+  Click the image to open it in a new tab. Click the "Edit answers" button
+  to edit your answers.
+
+  ${ action_button_html(url_action('review_motionforcontempt'), label='Edit answers', color='info') }
+  
+  Remember to come back to this window to continue and sign your form.
+continue button field: motionforcontempt_preview_question    
+---
+code: |
+  signature_fields = ['users[0].signature']
+---
+code: |
+  # This is a placeholder for the addresses that will be searched
+  # for matching address to court. Edit if court venue is based on 
+  # a different address than the user's
+  [user.address.address for user in users.complete_elements()]
+  addresses_to_search = [user.address for user in users.complete_elements()]
+---
+id: motionforcontempt review screen
+event: review_motionforcontempt
+question: |
+  Review your answers
+review:
+  - Edit: judgment_information
+    button: |
+      **Judgment information**:
+      ${ judgment_information }
+  - Edit: docket_number
+    button: |
+      **Docket number**:
+      ${ docket_number }
+  - Edit: users.revisit
+    button: |
+      **Users**
+
+      % for item in users:
+        * ${ item }
+      % endfor
+  - Edit: other_parties.revisit
+    button: |
+      **Other parties**
+
+      % for item in other_parties:
+        * ${ item }
+      % endfor
+  - Edit: division
+    button: |
+      **Division**:
+      ${ division }
+  - Edit: user_phone_number
+    button: |
+      **User phone number**:
+      ${ user_phone_number }
+  - Edit: reasons_to_be_in_contempt
+    button: |
+      **Reasons to be in contempt**:
+      ${ reasons_to_be_in_contempt }
+  - Edit: judicial_district
+    button: |
+      **Judicial district**:
+      ${ judicial_district }
+  - Edit: name
+    button: |
+      **Name**:
+      ${ name }
+  - Edit: user_ask_role
+    button: |
+      **User ask role**:
+      ${ user_ask_role }
+  - Edit: date_of_order
+    button: |
+      **Date of order**:
+      ${ date_of_order }
+---
+continue button field: users.revisit
+question: |
+  Edit users
+subquestion: |
+  ${ users.table }
+
+  ${ users.add_action() }
+---
+table: users.table
+rows: users
+columns:
+  - Signature: |
+      row_item.signature if defined("row_item.signature") else ""
+  - Address: |
+      row_item.address.block() if defined("row_item.address.county") else ""
+  - Name: |
+      row_item.name.full() if defined("row_item.name.first") else ""
+edit:
+  - signature
+  - address.county
+  - name.first
+confirm: True
+
+---
+continue button field: other_parties.revisit
+question: |
+  Edit other_parties
+subquestion: |
+  ${ other_parties.table }
+
+  ${ other_parties.add_action() }
+---
+table: other_parties.table
+rows: other_parties
+columns:
+  - Name: |
+      row_item.name.full() if defined("row_item.name.first") else ""
+edit:
+  - name.first
+confirm: True
+
+---
+id: download motionforcontempt
+event: motionforcontempt_download
+question: |
+  All done
+subquestion: |
+  Thank you ${users}. Your form is ready to download and deliver.
+  
+  View, download and send your form below. Click the "Edit answers" button to fix any mistakes.
+
+  ${ action_button_html(url_action('review_motionforcontempt'), label='Edit answers', color='info') }
+  
+  
+  ${ al_user_bundle.download_list_html() }
+  
+
+  ${ al_user_bundle.send_button_html(show_editable_checkbox=True) }
+
+progress: 100
+---
+# ALDocument objects specify the metadata for each template
+objects:
+  - motionforcontempt_Post_interview_instructions: ALDocument.using(title="Instructions", filename="motionforcontempt_next_steps.docx", enabled=True, has_addendum=False)
+  - motionforcontempt_attachment: ALDocument.using(title="Motionforcontempt", filename="Motionforcontempt", enabled=True, has_addendum=False, )
+---
+# Bundles group the ALDocuments into separate downloads, such as for court and for the user
+objects:
+  - al_user_bundle: ALDocumentBundle.using(elements=[motionforcontempt_Post_interview_instructions, motionforcontempt_attachment], filename="motionforcontempt", title="All forms to download for your records", enabled=True)
+  - al_court_bundle: ALDocumentBundle.using(elements=[motionforcontempt_attachment],  filename="motionforcontempt", title="All forms to deliver to court", enabled=True)
+---
+# Each attachment defines a key in an ALDocument. We use `i` as the placeholder here so the same template is 
+# used for "preview" and "final" keys, and logic in the template checks the value of 
+# `i` to show or hide the user's signature
+attachment:
+  name: Post-interview-Instructions
+  filename: motionforcontempt_next_steps
+  docx template file: motionforcontempt_next_steps.docx
+  variable name: motionforcontempt_Post_interview_instructions[i]
+  skip undefined: True
+---
+attachment:
+  name: motionforcontempt
+  filename: motionforcontempt
+  variable name: motionforcontempt_attachment[i]
+  skip undefined: True
+  docx template file: motionforcontempt.docx
+  fields:
+      - "name": ${ trial_court.name }
+      - "judicial_district": ${ trial_court.judicial_district }
+      - "district_attorney": ${ trial_court.district_attorney }
+      - "user_names": ${ users }
+      - "other_parties_names": ${ other_parties }
