@@ -81,11 +81,15 @@ code: |
   trial_court_index
   judgment_information
   who_violated_the_judgment.address.address
-  plantiff_or_defendant_attorney
-  if (plantiff_or_defendant_attorney):
+  who_violated_the_judgment_phone_number
+  plaintiff_or_defendant_attorney
+  if (plaintiff_or_defendant_attorney):
     attorney.gather()
     attorney[0].address.address
   set_progress(25)
+  review_motionforcontempt
+  users[0].signature
+  motionforcontempt_download
   #set_parts(subtitle=str(users))
   interview_order_motionforcontempt = True
 ---
@@ -145,12 +149,51 @@ fields:
   - code: |
       users[0].name_fields()
   - "Phone number": user_phone_number
+    hint: |
+      (504) 555-5555
+  - "Email": user_email
+    datatype: email
+---
+id: your address
+sets:
+  - users[0].address.address
+  - users[0].address.city
+  - users[0].address.county
+  - users[0].address.zip
+  - users[0].address.unit
+  - users[0].address.state
+  - users[0].address.country
+question: |
+  What is your address?
+subquestion: |
+  Use an address where you can be contacted.
+fields:
+  - code: |
+      users[0].address_fields(show_county=True, country_code=AL_DEFAULT_COUNTRY, default_state=AL_DEFAULT_STATE)
+---
+sets:
+  - other_parties[0].address.address
+  - other_parties[0].address.city
+  - other_parties[0].address.county
+  - other_parties[0].address.zip
+  - other_parties[0].address.unit
+  - other_parties[0].address.state
+  - other_parties[0].address.country
+id: persons address
+generic object: ALIndividual
+question: |
+  What is ${ other_parties[0].possessive('address') }?
+fields:
+  - code: |
+      other_parties[0].address_fields(show_county=True, country_code=AL_DEFAULT_COUNTRY, default_state=AL_DEFAULT_STATE)
 ---
 id: Who Violated's phone number
 question: |
   What is ${ who_violated_the_judgment }'s phone number?
 fields:
   - "Phone number": who_violated_the_judgment_phone_number
+    hint: |
+      (504) 555-5555
 ---
 id: Case info
 question: |
@@ -201,31 +244,21 @@ sets:
 question: |
   Attorney Information
 fields:
-  - "Does ${ who_violated_the_judgment } have an attorney?": plantiff_or_defendant_attorney
+  - "Does ${ who_violated_the_judgment } have an attorney?": plaintiff_or_defendant_attorney
     datatype: yesnoradio
+---
+id: attorney info
+question: |
+  Attorney Information
+fields:
   - First name: attorney[0].name.first
-    show if: 
-      variable: plantiff_or_defendant_attorney
-      is: True
   - Middle name: attorney[0].name.middle
     required: False
-    show if: 
-      variable: plantiff_or_defendant_attorney
-      is: True
   - Last name: attorney[0].name.last
-    show if: 
-      variable: plantiff_or_defendant_attorney
-      is: True
   - Suffix: attorney[0].name.suffix
-    show if: 
-      variable: plantiff_or_defendant_attorney
-      is: True
     required: False
   - "Phone number": attorney_phone_number
     datatype: text
-    show if: 
-      variable: plantiff_or_defendant_attorney
-      is: True
 ---
 id: preview motionforcontempt
 question: |
@@ -240,8 +273,7 @@ subquestion: |
 
   ${ action_button_html(url_action('review_motionforcontempt'), label='Edit answers', color='info') }
   
-  Remember to come back to this window to continue and sign your form.
-continue button field: motionforcontempt_preview_question    
+  Remember to come back to this window to continue and sign your form.   
 ---
 code: |
   signature_fields = ['users[0].signature']
@@ -256,58 +288,77 @@ code: |
 id: motionforcontempt review screen
 event: review_motionforcontempt
 question: |
-  Review your answers
+  Please review your information.
+subquestion: |
+  Be sure to carefully check over the information that was given.
 review:
-  - Edit: judgment_information
+  - Edit: users[0].name.first
     button: |
-      **Judgment information**:
-      ${ judgment_information }
+      **Your name**:
+      ${ users[0].name.full() }
+  - Edit: user_phone_number
+    button: |
+      **Your phone number**:
+      ${ user_phone_number }
+  - Edit: users.revisit
+    button: |
+      % if user_ask_role == "defendant":
+       **Defendants:**
+      % elif user_ask_role == "plaintiff":
+       **Plaintiffs:**
+      % endif
+      % for item in users:
+        
+        ${ item }
+          
+      % endfor
+  - Edit: users[0].address.address
+    button: |
+      **Your address:**
+      ${ users[0].address.address }, ${ users[0].address.city }, ${ users[0].address.state }, ${ users[0].address.zip }
+  - Edit: other_parties.revisit
+    button: | 
+      % if user_ask_role == "defendant":
+       **Plaintiffs:**
+      % elif user_ask_role == "plaintiff":
+       **Defendants:**
+      % endif 
+      % for item in other_parties:
+      
+      ${ item }       
+      % endfor
+  - Edit: attorney[0].name.first
+    button: |
+      **Violator's attorney:**
+      ${ attorney[0].name.full() } 
+  - Edit: attorney[0].address.address
+    button: |
+      **Attorney's address:**
+      ${ attorney[0].address.address }
+  - Edit: who_violated_the_judgment
+    button: |
+      **Person who violated:**
+      ${ who_violated_the_judgment }
   - Edit: docket_number
     button: |
       **Docket number**:
       ${ docket_number }
-  - Edit: users.revisit
-    button: |
-      **Users**
-
-      % for item in users:
-        * ${ item }
-      % endfor
-  - Edit: other_parties.revisit
-    button: |
-      **Other parties**
-
-      % for item in other_parties:
-        * ${ item }
-      % endfor
   - Edit: division
     button: |
       **Division**:
       ${ division }
-  - Edit: user_phone_number
+  - Edit: trial_court_index
     button: |
-      **User phone number**:
-      ${ user_phone_number }
-  - Edit: reasons_to_be_in_contempt
-    button: |
-      **Reasons to be in contempt**:
-      ${ reasons_to_be_in_contempt }
-  - Edit: judicial_district
-    button: |
-      **Judicial district**:
-      ${ judicial_district }
-  - Edit: name
-    button: |
-      **Name**:
-      ${ name }
-  - Edit: user_ask_role
-    button: |
-      **User ask role**:
-      ${ user_ask_role }
+      **Parish where order was filed**:
+      ${ trial_court.name }
   - Edit: date_of_order
     button: |
       **Date of order**:
       ${ date_of_order }
+  - Edit: reasons_to_be_in_contempt
+    button: |
+      **Reasons to be in contempt**:
+      ${ reasons_to_be_in_contempt }
 ---
 continue button field: users.revisit
 question: |
@@ -397,8 +448,11 @@ attachment:
   skip undefined: True
   docx template file: motionforcontempt.docx
   fields:
-      - "name": ${ trial_court.name }
+      - "NAME": ${ trial_court.name }
       - "judicial_district": ${ trial_court.judicial_district }
       - "district_attorney": ${ trial_court.district_attorney }
-      - "user_names": ${ users }
-      - "other_parties_names": ${ other_parties }
+      - "USER_NAMES": ${ users }
+      - "OTHER_PARTIES_NAMES": ${ other_parties }
+      - "date_of_order_day": ${ format_date(date_of_order, format='d') }
+      - "date_of_order_month": ${ format_date(date_of_order, format='MMMM') }
+      - "date_of_order_year": ${ format_datetime(date_of_order, format='yyyy') }
