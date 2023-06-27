@@ -286,7 +286,7 @@ code: |
   addresses_to_search = [user.address for user in users.complete_elements()]
 ---
 id: motionforcontempt review screen
-event: review_motionforcontempt
+continue button field: review_motionforcontempt
 question: |
   Please review your information.
 subquestion: |
@@ -456,3 +456,4 @@ attachment:
       - "date_of_order_day": ${ format_date(date_of_order, format='d') }
       - "date_of_order_month": ${ format_date(date_of_order, format='MMMM') }
       - "date_of_order_year": ${ format_datetime(date_of_order, format='yyyy') }
+      - "state_name": ${ state_name(users[0].address.state) }
